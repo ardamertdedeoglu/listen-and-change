@@ -11,7 +11,7 @@ The speech recognition system has been significantly improved to provide more ac
 1. **Multiple Recognition Engines**:
    - Added support for OpenAI's Whisper (primary engine with excellent word timestamps)
    - Added support for Vosk (offline engine with good word timestamps)
-   - Maintained Google Speech Recognition as a fallback option
+   - No longer using Google Speech Recognition to avoid costs
 
 2. **Enhanced Word Boundary Detection**:
    - Implemented a more sophisticated audio analysis algorithm
@@ -60,8 +60,7 @@ The script will:
 1. Convert the audio file to WAV format if needed
 2. Attempt to transcribe using Whisper (if available)
 3. Fall back to Vosk if Whisper is not available
-4. Use Google Speech Recognition as a last resort
-5. Return a JSON object with the transcription and word timestamps
+4. Return a JSON object with the transcription and word timestamps
 
 ## Output Format
 

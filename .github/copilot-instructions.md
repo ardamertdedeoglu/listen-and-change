@@ -8,7 +8,7 @@ This is a sound file editing application that identifies specific words in audio
 ## Technical Stack
 - **Frontend**: React with TypeScript, Material-UI, WaveSurfer.js for audio visualization
 - **Backend**: Node.js with Express, Multer for file uploads, FFmpeg for audio processing
-- **Speech Recognition**: Google Cloud Speech-to-Text API (with mock implementation for demo)
+- **Speech Recognition**: OpenAI's Whisper and Vosk for free speech recognition with word timestamps
 - **NLP**: Natural library and Compromise.js for text analysis
 - **TTS**: Google Cloud Text-to-Speech API (with mock implementation for demo)
 

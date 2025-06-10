@@ -6,7 +6,6 @@ Supports accurate word timestamps and multiple audio formats
 
 import sys
 import json
-import speech_recognition as sr
 from pydub import AudioSegment
 import tempfile
 import os
@@ -305,66 +304,6 @@ def transcribe_audio(audio_file):
             logger.info("Vosk recognition successful with word timestamps")
             results.append(vosk_result)
         
-        # 3. Try Google Speech Recognition (fallback)
-        try:
-            recognizer = sr.Recognizer()
-            with sr.AudioFile(wav_file) as source:
-                recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                audio_data = recognizer.record(source)
-            
-            text = recognizer.recognize_google(audio_data, language='en-US')
-            logger.info("Google Speech Recognition successful")
-            
-            # Split text into words
-            words = text.split()
-            
-            # Try to get word timestamps using enhanced audio analysis
-            word_boundaries = detect_word_boundaries_enhanced(wav_file)
-            
-            # Create word timing estimates
-            word_objects = []
-            
-            if words and len(word_boundaries) > 1:
-                # We have detected word boundaries, use them
-                logger.info("Using detected word boundaries for timestamps")
-                
-                # Ensure we have enough boundaries for all words
-                if len(word_boundaries) >= len(words) + 1:
-                    for i, word in enumerate(words):
-                        start_time = word_boundaries[i]
-                        end_time = word_boundaries[i + 1]
-                        
-                        word_objects.append({
-                            "word": word.strip('.,!?;:"()[]'),  # Clean punctuation
-                            "startTime": round(start_time, 2),
-                            "endTime": round(end_time, 2),
-                            "confidence": 0.7,  # Lower confidence for detected boundaries
-                            "source": "audio_analysis"
-                        })
-                else:
-                    # Not enough boundaries, fall back to distribution method
-                    logger.warning("Not enough word boundaries detected, falling back to distribution method")
-                    word_objects = create_distributed_word_timings(words, audio_duration)
-            else:
-                # No word boundaries detected, use distribution method
-                logger.warning("No word boundaries detected, using distribution method")
-                word_objects = create_distributed_word_timings(words, audio_duration)
-            
-            google_result = {
-                "text": text,
-                "words": word_objects,
-                "duration": audio_duration,
-                "source": "google_speech_recognition"
-            }
-            results.append(google_result)
-            
-        except sr.UnknownValueError:
-            logger.warning("Could not understand audio with Google Speech Recognition")
-        except sr.RequestError as e:
-            logger.error(f"Could not request results from Google Speech Recognition: {e}")
-        except Exception as e:
-            logger.error(f"Google Speech Recognition error: {str(e)}")
-        
         # Select the best result
         if results:
             # Prefer results with word timestamps
@@ -373,8 +312,8 @@ def transcribe_audio(audio_file):
                     logger.info(f"Selected {result['source']} result with word timestamps")
                     return result
             
-            # Fall back to Google result if no timestamp results
-            logger.info("Falling back to Google Speech Recognition result")
+            # Fall back to any available result
+            logger.info("Falling back to available result")
             return results[0]
         else:
             # No results from any engine

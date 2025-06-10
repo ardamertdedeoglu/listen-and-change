@@ -52,35 +52,9 @@ class SpeechService {
             }
             
             /* 
-            // Production Google Cloud Speech-to-Text implementation:
-            const audioBytes = fs.readFileSync(audioFilePath).toString('base64');
-            
-            const request = {
-                audio: {
-                    content: audioBytes,
-                },
-                config: {
-                    encoding: 'LINEAR16',
-                    sampleRateHertz: 16000,
-                    languageCode: 'en-US',
-                    enableWordTimeOffsets: true,
-                    enableAutomaticPunctuation: true,
-                },
-            };
-            
-            const [response] = await speechClient.recognize(request);
-            const transcription = response.results
-                .map(result => result.alternatives[0])
-                .map(alternative => ({
-                    text: alternative.transcript,
-                    words: alternative.words ? alternative.words.map(word => ({
-                        word: word.word,
-                        startTime: word.startTime.seconds + word.startTime.nanos / 1e9,
-                        endTime: word.endTime.seconds + word.endTime.nanos / 1e9
-                    })) : []
-                }));
-            
-            return transcription[0] || { text: '', words: [] };
+            // We no longer use Google Cloud Speech-to-Text to avoid costs.
+            // Instead, we use OpenAI's Whisper and Vosk for speech recognition.
+            // These are free alternatives that provide excellent word timestamps.
             */        } catch (error) {
             console.error('Speech transcription error:', error);
             

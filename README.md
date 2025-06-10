@@ -106,7 +106,8 @@ listen-and-change/
 - **Natural/Compromise.js** for advanced text analysis
 
 ### External APIs (Production)
-- **Google Cloud Speech-to-Text** for accurate transcription
+- **OpenAI's Whisper** for accurate transcription with word timestamps
+- **Vosk** for offline speech recognition with word timestamps
 - **Google Cloud Text-to-Speech** for natural voice synthesis
 
 ## 🔧 Configuration
@@ -128,7 +129,6 @@ MAX_FILE_SIZE=52428800
 UPLOAD_DIR=./uploads
 
 # External APIs (for production)
-GOOGLE_APPLICATION_CREDENTIALS=path/to/credentials.json
 GOOGLE_CLOUD_PROJECT_ID=your-project-id
 ```
 
@@ -177,7 +177,6 @@ GOOGLE_CLOUD_PROJECT_ID=your-project-id
 
 ### 🔄 In Progress
 - Audio processing with FFmpeg integration
-- Google Cloud API integration for production
 - Database integration for user preferences
 - Advanced audio effects and filters
 
@@ -208,9 +207,10 @@ If you encounter any issues or have questions:
 2. Create a new issue with detailed information
 3. Join our community discussions
 
-## 🙏 Acknowledgments
+## �� Acknowledgments
 
-- Google Cloud for Speech and Text-to-Speech APIs
+- OpenAI for the Whisper speech recognition model
+- Vosk for offline speech recognition capabilities
 - WaveSurfer.js for excellent audio visualization
 - Material-UI team for beautiful components
 - Natural and Compromise.js for NLP capabilities
