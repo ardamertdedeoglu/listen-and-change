@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Text-to-Speech script using pyttsx3 and gTTS
+Text-to-Speech script using pyttsx3
 Generates replacement audio for specific words
 """
 
@@ -48,36 +48,6 @@ def generate_tts_with_pyttsx3(text, output_path, rate=150, volume=0.9):
         logger.error(f"pyttsx3 TTS generation failed: {e}")
         return False
 
-def generate_tts_with_gtts(text, output_path, lang='en'):
-    """Generate TTS using gTTS (requires internet)"""
-    try:
-        from gtts import gTTS
-        from pydub import AudioSegment
-        
-        # Create gTTS object
-        tts = gTTS(text=text, lang=lang, slow=False)
-        
-        # Save to temporary mp3 file
-        temp_mp3 = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-        tts.save(temp_mp3.name)
-        
-        # Convert MP3 to WAV for consistency
-        audio = AudioSegment.from_mp3(temp_mp3.name)
-        audio.export(output_path, format="wav")
-        
-        # Clean up temp file
-        os.unlink(temp_mp3.name)
-        
-        logger.info(f"TTS generated successfully with gTTS: {output_path}")
-        return True
-        
-    except ImportError:
-        logger.warning("gTTS or dependencies not available")
-        return False
-    except Exception as e:
-        logger.error(f"gTTS TTS generation failed: {e}")
-        return False
-
 def create_silence(duration_seconds, output_path, sample_rate=44100):
     """Create a silent audio file of specified duration"""
     try:
@@ -117,20 +87,12 @@ def main():
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
         
-        # Try different TTS methods in order of preference
-        success = False
+        # Try TTS with pyttsx3
+        success = generate_tts_with_pyttsx3(text, output_path, rate, volume)
         
-        # Method 1: pyttsx3 (offline, fast)
+        # Fallback: Create silence if TTS fails
         if not success:
-            success = generate_tts_with_pyttsx3(text, output_path, rate, volume)
-        
-        # Method 2: gTTS (online, better quality)
-        if not success:
-            success = generate_tts_with_gtts(text, output_path)
-        
-        # Fallback: Create silence if all methods fail
-        if not success:
-            logger.warning("All TTS methods failed, creating silence as fallback")
+            logger.warning("TTS method failed, creating silence as fallback")
             word_duration = max(0.5, len(text.split()) * 0.3)  # Estimate duration
             success = create_silence(word_duration, output_path)
         

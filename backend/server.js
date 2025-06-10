@@ -5,8 +5,14 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
+// Import database connection
+const connectDB = require('./config/db');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Connect to MongoDB
+connectDB();
 
 // Middleware
 app.use(cors());

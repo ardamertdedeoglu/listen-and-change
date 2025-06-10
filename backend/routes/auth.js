@@ -1,10 +1,7 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
-
-// Mock user storage (in production, use a database)
-const users = [];
+const User = require('../models/User');
 
 // Register endpoint
 router.post('/register', async (req, res) => {
@@ -16,29 +13,23 @@ router.post('/register', async (req, res) => {
         }
 
         // Check if user already exists
-        const existingUser = users.find(u => u.email === email);
+        const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ error: 'User already exists' });
         }
 
-        // Hash password
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
         // Create user
-        const user = {
-            id: Date.now().toString(),
+        const user = new User({
             email,
             name,
-            password: hashedPassword,
-            createdAt: new Date()
-        };
+            password // Will be hashed by the pre-save middleware
+        });
 
-        users.push(user);
+        await user.save();
 
         // Generate JWT token
         const token = jwt.sign(
-            { userId: user.id, email: user.email },
+            { userId: user._id, email: user.email },
             process.env.JWT_SECRET || 'fallback_secret',
             { expiresIn: '24h' }
         );
@@ -47,7 +38,7 @@ router.post('/register', async (req, res) => {
             message: 'User registered successfully',
             token,
             user: {
-                id: user.id,
+                id: user._id,
                 email: user.email,
                 name: user.name
             }
@@ -68,20 +59,20 @@ router.post('/login', async (req, res) => {
         }
 
         // Find user
-        const user = users.find(u => u.email === email);
+        const user = await User.findOne({ email });
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         // Check password
-        const isValidPassword = await bcrypt.compare(password, user.password);
+        const isValidPassword = await user.comparePassword(password);
         if (!isValidPassword) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
         // Generate JWT token
         const token = jwt.sign(
-            { userId: user.id, email: user.email },
+            { userId: user._id, email: user.email },
             process.env.JWT_SECRET || 'fallback_secret',
             { expiresIn: '24h' }
         );
@@ -90,7 +81,7 @@ router.post('/login', async (req, res) => {
             message: 'Login successful',
             token,
             user: {
-                id: user.id,
+                id: user._id,
                 email: user.email,
                 name: user.name
             }
@@ -102,16 +93,16 @@ router.post('/login', async (req, res) => {
 });
 
 // Get user profile
-router.get('/profile', authenticateToken, (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
     try {
-        const user = users.find(u => u.id === req.user.userId);
+        const user = await User.findById(req.user.userId);
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
         res.json({
             user: {
-                id: user.id,
+                id: user._id,
                 email: user.email,
                 name: user.name,
                 createdAt: user.createdAt
