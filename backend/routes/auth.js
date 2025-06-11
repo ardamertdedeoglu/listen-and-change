@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const User = require('../models/User');
+const auth = require('../middleware/auth');
 
 // Register endpoint
 router.post('/register', async (req, res) => {
@@ -29,7 +30,7 @@ router.post('/register', async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            { id: user._id, email: user.email },
             process.env.JWT_SECRET || 'fallback_secret',
             { expiresIn: '24h' }
         );
@@ -72,7 +73,7 @@ router.post('/login', async (req, res) => {
 
         // Generate JWT token
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
+            { id: user._id, email: user.email },
             process.env.JWT_SECRET || 'fallback_secret',
             { expiresIn: '24h' }
         );
@@ -93,19 +94,14 @@ router.post('/login', async (req, res) => {
 });
 
 // Get user profile
-router.get('/profile', authenticateToken, async (req, res) => {
+router.get('/profile', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
         res.json({
             user: {
-                id: user._id,
-                email: user.email,
-                name: user.name,
-                createdAt: user.createdAt
+                id: req.user._id,
+                email: req.user.email,
+                name: req.user.name,
+                createdAt: req.user.createdAt
             }
         });
     } catch (error) {
@@ -113,23 +109,5 @@ router.get('/profile', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to get profile' });
     }
 });
-
-// Middleware to authenticate JWT token
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({ error: 'Access token required' });
-    }
-
-    jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret', (err, user) => {
-        if (err) {
-            return res.status(403).json({ error: 'Invalid token' });
-        }
-        req.user = user;
-        next();
-    });
-}
 
 module.exports = router;

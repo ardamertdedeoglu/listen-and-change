@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import AudioEditor from './components/AudioEditor';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import UserAudios from './components/UserAudios';
 import { AuthProvider } from './contexts/AuthContext';
 import './App.css';
 
@@ -58,6 +59,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/editor" element={<AudioEditor />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/my-audios" element={<UserAudios />} />
               </Routes>
             </Box>
           </Box>

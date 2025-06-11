@@ -7,6 +7,8 @@ const router = express.Router();
 const speechService = require('../services/speechService');
 const audioService = require('../services/audioService');
 const nlpService = require('../services/nlpService');
+const audioStorageService = require('../services/audioStorageService');
+const auth = require('../middleware/auth');
 
 // Function to clean up old uploads
 function cleanupOldUploads() {
@@ -114,38 +116,14 @@ const upload = multer({
     }
 });
 
-// Upload audio file
-router.post('/upload', upload.single('audio'), async (req, res) => {
+// Upload audio file - Protected route
+router.post('/upload', auth, upload.single('audio'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No audio file provided' });
         }
 
         console.log(`📁 New file uploaded: ${req.file.filename}`);
-        
-        // Clean up old uploads AFTER the new file is saved
-        // This prevents conflicts and ensures the new file isn't deleted
-        setTimeout(() => {
-            const uploadsDir = path.join(__dirname, '../uploads');
-            try {
-                const files = fs.readdirSync(uploadsDir);
-                const currentFile = req.file.filename;
-                
-                files.forEach(file => {
-                    if (file !== currentFile && !file.startsWith('.')) {
-                        const filePath = path.join(uploadsDir, file);
-                        try {
-                            fs.unlinkSync(filePath);
-                            console.log(`  🗑️ Cleaned up old file: ${file}`);
-                        } catch (error) {
-                            console.error(`  ❌ Failed to delete ${file}:`, error.message);
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error('❌ Error during cleanup:', error);
-            }
-        }, 1000); // Wait 1 second to ensure file is saved
         
         const audioFile = {
             filename: req.file.filename,
@@ -155,9 +133,13 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
             mimetype: req.file.mimetype
         };
 
+        // Save to MongoDB
+        const savedAudio = await audioStorageService.saveAudioFile(audioFile, req.user._id);
+
         res.json({
             message: 'Audio file uploaded successfully',
-            file: audioFile
+            file: audioFile,
+            audioId: savedAudio._id
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -165,22 +147,77 @@ router.post('/upload', upload.single('audio'), async (req, res) => {
     }
 });
 
-// Convert speech to text
-router.post('/speech-to-text', async (req, res) => {
+// Get user's audio files - Protected route
+router.get('/my-audios', auth, async (req, res) => {
     try {
-        const { filename } = req.body;
+        const audios = await audioStorageService.getUserAudios(req.user._id);
+        res.json({ audios });
+    } catch (error) {
+        console.error('Error fetching user audio files:', error);
+        res.status(500).json({ error: 'Failed to fetch user audio files' });
+    }
+});
+
+// Get a specific audio file - Protected route
+router.get('/:audioId', auth, async (req, res) => {
+    try {
+        const audio = await audioStorageService.getAudioById(req.params.audioId);
         
-        if (!filename) {
-            return res.status(400).json({ error: 'Filename is required' });
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        res.json({ audio });
+    } catch (error) {
+        console.error('Error fetching audio file:', error);
+        res.status(500).json({ error: 'Failed to fetch audio file' });
+    }
+});
+
+// Delete an audio file - Protected route
+router.delete('/:audioId', auth, async (req, res) => {
+    try {
+        const audio = await audioStorageService.getAudioById(req.params.audioId);
+        
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        await audioStorageService.deleteAudio(req.params.audioId);
+        
+        res.json({ message: 'Audio file deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting audio file:', error);
+        res.status(500).json({ error: 'Failed to delete audio file' });
+    }
+});
+
+// Convert speech to text - Protected route
+router.post('/speech-to-text', auth, async (req, res) => {
+    try {
+        const { audioId } = req.body;
+        
+        if (!audioId) {
+            return res.status(400).json({ error: 'Audio ID is required' });
         }
 
-        const audioPath = path.join(__dirname, '../uploads', filename);
+        const audio = await audioStorageService.getAudioById(audioId);
         
-        if (!fs.existsSync(audioPath)) {
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        if (!fs.existsSync(audio.filePath)) {
             return res.status(404).json({ error: 'Audio file not found' });
         }
 
-        const transcription = await speechService.transcribeAudio(audioPath);
+        const transcription = await speechService.transcribeAudio(audio.filePath);
+        
+        // Update the audio document with transcription
+        await audioStorageService.updateProcessedAudio(audioId, { transcription: transcription.text });
         
         res.json({
             transcription: transcription,
@@ -192,152 +229,120 @@ router.post('/speech-to-text', async (req, res) => {
     }
 });
 
-// Analyze text and identify words to replace
-router.post('/analyze-text', async (req, res) => {
+// Analyze text and identify words to replace - Protected route
+router.post('/analyze-text', auth, async (req, res) => {
     try {
-        const { text, targetWords } = req.body;
+        const { text, targetWords, audioId } = req.body;
         
         if (!text) {
             return res.status(400).json({ error: 'Text is required' });
         }
-
+        
+        if (!audioId) {
+            return res.status(400).json({ error: 'Audio ID is required' });
+        }
+        
+        const audio = await audioStorageService.getAudioById(audioId);
+        
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
         const analysis = await nlpService.analyzeText(text, targetWords);
         
-        res.json({
-            analysis: analysis,
-            wordsFound: analysis.wordsFound || [],
-            suggestions: analysis.suggestions || []
-        });
+        res.json(analysis);
     } catch (error) {
         console.error('Text analysis error:', error);
         res.status(500).json({ error: 'Failed to analyze text' });
     }
 });
 
-// Process audio with word replacements
-router.post('/process-audio', async (req, res) => {
+// Process audio with replacements - Protected route
+router.post('/process-audio', auth, async (req, res) => {
     try {
-        // Clean up old processed files to save space
-        cleanupOldProcessedFiles();
+        const { audioId, replacements } = req.body;
         
-        const { filename, replacements } = req.body;
-        
-        if (!filename || !replacements) {
-            return res.status(400).json({ error: 'Filename and replacements are required' });
+        if (!audioId) {
+            return res.status(400).json({ error: 'Audio ID is required' });
         }
-
-        const audioPath = path.join(__dirname, '../uploads', filename);
         
-        if (!fs.existsSync(audioPath)) {
+        const audio = await audioStorageService.getAudioById(audioId);
+        
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        if (!fs.existsSync(audio.filePath)) {
             return res.status(404).json({ error: 'Audio file not found' });
         }
-
-        // Validate replacements to ensure they have valid timestamps
-        const validReplacements = replacements.filter(r => 
-            r.startTime !== undefined && 
-            r.endTime !== undefined && 
-            r.startTime < r.endTime && 
-            r.replacementText
-        );
         
-        if (validReplacements.length === 0) {
-            console.log('No valid replacements found, returning original file');
-            return res.json({
-                message: 'No valid replacements found, using original file',
-                processedFile: filename,
-                downloadUrl: `/api/audio/download/${filename}`
-            });
-        }
-
-        console.log(`Processing audio with ${validReplacements.length} valid replacements`);
+        const processedAudio = await audioService.processAudioReplacements(audio.filePath, replacements);
         
-        const processedAudio = await audioService.processAudioReplacements(audioPath, validReplacements);
-        
-        if (!processedAudio || !processedAudio.filename) {
-            throw new Error('Audio processing failed to return a valid file');
-        }
-        
-        // Verify the processed file exists
-        const processedPath = path.join(__dirname, '../uploads', processedAudio.filename);
-        if (!fs.existsSync(processedPath)) {
-            throw new Error('Processed file was not created');
-        }
+        // Update the audio document with processed file information
+        await audioStorageService.updateProcessedAudio(audioId, {
+            path: processedAudio.path,
+            filename: processedAudio.filename,
+            replacements: replacements
+        });
         
         res.json({
             message: 'Audio processed successfully',
-            processedFile: processedAudio.filename,
-            downloadUrl: `/api/audio/download/${processedAudio.filename}`
+            processedFile: {
+                filename: processedAudio.filename,
+                path: processedAudio.path
+            }
         });
     } catch (error) {
         console.error('Audio processing error:', error);
-        res.status(500).json({ error: 'Failed to process audio: ' + error.message });
+        res.status(500).json({ error: 'Failed to process audio' });
     }
 });
 
-// Download processed audio
-router.get('/download/:filename', (req, res) => {
+// Get processed audio file - Protected route
+router.get('/processed/:audioId', auth, async (req, res) => {
     try {
-        const filename = req.params.filename;
-        const audioPath = path.join(__dirname, '../uploads', filename);
+        const audio = await audioStorageService.getAudioById(req.params.audioId);
         
-        if (!fs.existsSync(audioPath)) {
-            return res.status(404).json({ error: 'File not found' });
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
         }
-
-        // Set appropriate headers for audio download
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.setHeader('Content-Type', 'audio/wav');
         
-        // Create a read stream and pipe it to the response
-        const fileStream = fs.createReadStream(audioPath);
+        if (!audio.isProcessed || !audio.processedFilePath) {
+            return res.status(404).json({ error: 'Processed audio not found' });
+        }
         
-        // Handle errors on the file stream
-        fileStream.on('error', (err) => {
-            console.error('File stream error:', err);
-            // Only send error response if headers haven't been sent yet
-            if (!res.headersSent) {
-                res.status(500).json({ error: 'Failed to stream file' });
-            }
-        });
+        if (!fs.existsSync(audio.processedFilePath)) {
+            return res.status(404).json({ error: 'Processed audio file not found' });
+        }
         
-        // Handle client disconnect
-        req.on('close', () => {
-            fileStream.destroy();
-        });
-        
-        // Pipe the file to the response
-        fileStream.pipe(res);
-        
+        res.sendFile(audio.processedFilePath);
     } catch (error) {
-        console.error('Download error:', error);
-        // Only send error response if headers haven't been sent yet
-        if (!res.headersSent) {
-            res.status(500).json({ error: 'Failed to download file' });
-        }
+        console.error('Error fetching processed audio:', error);
+        res.status(500).json({ error: 'Failed to fetch processed audio' });
     }
 });
 
-// Get audio file info
-router.get('/info/:filename', (req, res) => {
+// Get original audio file - Protected route
+router.get('/original/:audioId', auth, async (req, res) => {
     try {
-        const filename = req.params.filename;
-        const audioPath = path.join(__dirname, '../uploads', filename);
+        const audio = await audioStorageService.getAudioById(req.params.audioId);
         
-        if (!fs.existsSync(audioPath)) {
-            return res.status(404).json({ error: 'File not found' });
+        // Check if the audio belongs to the user
+        if (audio.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied' });
         }
-
-        const stats = fs.statSync(audioPath);
         
-        res.json({
-            filename: filename,
-            size: stats.size,
-            created: stats.birthtime,
-            modified: stats.mtime
-        });
+        if (!fs.existsSync(audio.filePath)) {
+            return res.status(404).json({ error: 'Audio file not found' });
+        }
+        
+        res.sendFile(audio.filePath);
     } catch (error) {
-        console.error('File info error:', error);
-        res.status(500).json({ error: 'Failed to get file info' });
+        console.error('Error fetching original audio:', error);
+        res.status(500).json({ error: 'Failed to fetch original audio' });
     }
 });
 

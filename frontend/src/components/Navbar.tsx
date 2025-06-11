@@ -7,7 +7,7 @@ import {
   Box,
   IconButton,
 } from '@mui/material';
-import { AudioFile, Home, Login, Logout } from '@mui/icons-material';
+import { AudioFile, Home, Login, Logout, LibraryMusic } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -61,13 +61,23 @@ const Navbar: React.FC = () => {
           </Button>
           
           {isAuthenticated && (
-            <Button
-              color="inherit"
-              startIcon={<AudioFile />}
-              onClick={() => navigate('/editor')}
-            >
-              Editor
-            </Button>
+            <>
+              <Button
+                color="inherit"
+                startIcon={<AudioFile />}
+                onClick={() => navigate('/editor')}
+              >
+                Editor
+              </Button>
+              
+              <Button
+                color="inherit"
+                startIcon={<LibraryMusic />}
+                onClick={() => navigate('/my-audios')}
+              >
+                My Audios
+              </Button>
+            </>
           )}
 
           {isAuthenticated ? (

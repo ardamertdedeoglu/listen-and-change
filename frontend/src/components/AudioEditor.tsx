@@ -38,6 +38,7 @@ import {
 import { useDropzone } from 'react-dropzone';
 import WaveSurfer from 'wavesurfer.js';
 import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
 
 interface WordReplacement {
   id: string;
@@ -64,9 +65,10 @@ interface ProcessedAudioFile {
 }
 
 const AudioEditor: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [uploadedFilename, setUploadedFilename] = useState<string>('');
+  const [audioId, setAudioId] = useState<string>('');
   const [audioUrl, setAudioUrl] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcription, setTranscription] = useState<string>('');
@@ -140,6 +142,7 @@ const AudioEditor: React.FC = () => {
     setProcessedFile(null);
     setAudioFile(null);
     setUploadedFilename('');
+    setAudioId('');
     setAudioUrl('');
     setIsPlaying(false);
 
@@ -158,22 +161,25 @@ const AudioEditor: React.FC = () => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
-      const response = await fetch('http://localhost:3001/api/audio/upload', {
-        method: 'POST',
-        body: formData,
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        }
       });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.status === 200) {
+        const data = response.data;
         setAudioFile(file);
         setUploadedFilename(data.file.filename);
+        setAudioId(data.audioId);
         setAudioUrl(URL.createObjectURL(file));
         
         // Start speech-to-text processing
-        await processSpeechToText(data.file.filename);
+        await processSpeechToText(data.audioId);
       } else {
         throw new Error('Upload failed');
       }
@@ -186,27 +192,32 @@ const AudioEditor: React.FC = () => {
     }
   }
 
-  async function processSpeechToText(filename: string) {
+  async function processSpeechToText(audioId: string) {
     setLoading(true);
     
     try {
-      const response = await fetch('http://localhost:3001/api/audio/speech-to-text', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ filename }),
-      });
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/speech-to-text`, 
+        { audioId },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        setTranscription(data.transcription.text);
-        setTranscriptionWords(data.transcription.words || []);
+      if (response.status === 200) {
+        const data = response.data;
+        setTranscription(data.transcription.text || '');
         
-        // Analyze text for inappropriate words
-        await analyzeText(data.transcription.text);
+        if (data.words && data.words.length > 0) {
+          setTranscriptionWords(data.words);
+          
+          // Analyze text for potential replacements
+          await analyzeText(data.transcription.text, [], audioId);
+        }
       } else {
-        throw new Error('Speech-to-text failed');
+        throw new Error('Speech-to-text processing failed');
       }
     } catch (error) {
       setError('Failed to process speech-to-text');
@@ -215,50 +226,57 @@ const AudioEditor: React.FC = () => {
       setLoading(false);
     }
   }
-  async function analyzeText(text: string) {
-    try {
-      console.log('Analyzing text:', text);
-      const response = await fetch('http://localhost:3001/api/audio/analyze-text', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Analysis response:', data);
+  async function analyzeText(text: string, targetWords: string[], audioId: string) {
+    setLoading(true);
+    
+    try {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/analyze-text`, 
+        { 
+          text,
+          targetWords,
+          audioId
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.status === 200) {
+        const data = response.data;
         
-        // Access suggestions from the root level, not nested under analysis
-        const suggestions = data.suggestions || [];
-        console.log('Found suggestions:', suggestions);
-        
-        const newReplacements: WordReplacement[] = suggestions.map((suggestion: any, index: number) => {
-          // Find the word in transcription
-          const wordIndex = transcriptionWords.findIndex(w => 
-            w.word.toLowerCase() === suggestion.originalWord.toLowerCase()
-          );
+        if (data.wordsFound && data.wordsFound.length > 0) {
+          const newReplacements = data.wordsFound.map((word: any, index: number) => {
+            // Find matching word in transcriptionWords to get timing information
+            const matchingWord = transcriptionWords.find(
+              (tw) => tw.word.toLowerCase() === word.word.toLowerCase()
+            );
+            
+            return {
+              id: `replacement-${index}`,
+              originalWord: word.word,
+              replacementWord: word.word, // Default to same word
+              position: word.position,
+              startTime: matchingWord ? matchingWord.startTime : undefined,
+              endTime: matchingWord ? matchingWord.endTime : undefined,
+              suggestions: word.suggestions || [],
+              selected: false
+            };
+          });
           
-          return {
-            id: `replacement-${index}`,
-            originalWord: suggestion.originalWord,
-            replacementWord: suggestion.recommended,
-            position: wordIndex >= 0 ? wordIndex : suggestion.position,
-            startTime: wordIndex >= 0 ? transcriptionWords[wordIndex].startTime : 0,
-            endTime: wordIndex >= 0 ? transcriptionWords[wordIndex].endTime : 0,
-            suggestions: suggestion.suggestions || [],
-            selected: false,
-          };
-        });
-        
-        console.log('Generated replacements:', newReplacements);
-        setReplacements(newReplacements);
+          setReplacements(newReplacements);
+        }
       } else {
-        console.error('Analysis failed:', response.status, response.statusText);
+        throw new Error('Text analysis failed');
       }
     } catch (error) {
+      setError('Failed to analyze text');
       console.error('Text analysis error:', error);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -278,7 +296,7 @@ const AudioEditor: React.FC = () => {
     setReplacements(prev => 
       prev.map(replacement => 
         replacement.id === id 
-          ? { ...replacement, selected: !replacement.selected }
+          ? { ...replacement, selected: !replacement.selected } 
           : replacement
       )
     );
@@ -288,7 +306,7 @@ const AudioEditor: React.FC = () => {
     setReplacements(prev => 
       prev.map(replacement => 
         replacement.id === id 
-          ? { ...replacement, replacementWord: newReplacement }
+          ? { ...replacement, replacementWord: newReplacement } 
           : replacement
       )
     );
@@ -299,10 +317,25 @@ const AudioEditor: React.FC = () => {
   };
 
   const handleProcessAudio = async () => {
+    if (!audioId) {
+      setError('No audio file selected');
+      return;
+    }
+
     const selectedReplacements = replacements.filter(r => r.selected);
     
-    if (!audioFile || !uploadedFilename || selectedReplacements.length === 0) {
-      setError('Please select words to replace before processing');
+    if (selectedReplacements.length === 0) {
+      setError('Please select at least one word to replace');
+      return;
+    }
+
+    // Filter out replacements without valid timing information
+    const validReplacements = selectedReplacements.filter(r => 
+      r.startTime !== undefined && r.endTime !== undefined
+    );
+
+    if (validReplacements.length === 0) {
+      setError('Selected words do not have valid timing information. Please try again.');
       return;
     }
 
@@ -310,31 +343,33 @@ const AudioEditor: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3001/api/audio/process-audio', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: uploadedFilename,
-          replacements: selectedReplacements.map(r => ({
-            originalWord: r.originalWord,
-            replacementText: r.replacementWord,
-            startTime: r.startTime,
-            endTime: r.endTime
-          }))
-        }),
-      });
+      const formattedReplacements = validReplacements.map(r => ({
+        originalWord: r.originalWord,
+        replacementText: r.replacementWord,
+        startTime: r.startTime,
+        endTime: r.endTime
+      }));
 
-      if (response.ok) {
-        const data = await response.json();
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/process-audio`, 
+        { 
+          audioId,
+          replacements: formattedReplacements
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (response.status === 200) {
+        const data = response.data;
         setProcessedFile({
-          filename: data.processedFile,
-          path: data.processedFile,
-          downloadUrl: data.downloadUrl
+          filename: data.processedFile.filename,
+          path: data.processedFile.path,
+          downloadUrl: `${process.env.REACT_APP_API_URL}/api/audio/processed/${audioId}`
         });
-        
-        alert('Audio processed successfully!');
       } else {
         throw new Error('Audio processing failed');
       }
@@ -348,12 +383,7 @@ const AudioEditor: React.FC = () => {
 
   const handleDownload = () => {
     if (processedFile) {
-      const link = document.createElement('a');
-      link.href = `http://localhost:3001${processedFile.downloadUrl}`;
-      link.download = `processed-${audioFile?.name || 'audio'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.open(processedFile.downloadUrl, '_blank');
     }
   };
 
@@ -504,7 +534,7 @@ const AudioEditor: React.FC = () => {
                             sx={{ minWidth: 150 }}
                           />
                           <Typography variant="body2" color="text.secondary">
-                            ({replacement.startTime.toFixed(1)}s - {replacement.endTime.toFixed(1)}s)
+                            ({replacement.startTime !== undefined ? replacement.startTime.toFixed(1) : 'N/A'}s - {replacement.endTime !== undefined ? replacement.endTime.toFixed(1) : 'N/A'}s)
                           </Typography>
                         </Box>
                       }

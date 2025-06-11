@@ -83,10 +83,10 @@ export const audioService = {
   },
 
   // Analyze text for inappropriate words
-  async analyzeText(text: string, targetWords?: string[]): Promise<{ analysis: NLPAnalysis; wordsFound: any[]; suggestions: any[] }> {
+  async analyzeText(text: string, targetWords?: string[], audioId?: string): Promise<{ analysis: NLPAnalysis; wordsFound: any[]; suggestions: any[] }> {
     return api.request('/audio/analyze-text', {
       method: 'POST',
-      body: JSON.stringify({ text, targetWords }),
+      body: JSON.stringify({ text, targetWords, audioId }),
     });
   },
 
