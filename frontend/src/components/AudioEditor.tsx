@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   Container,
   Paper,
@@ -22,7 +22,7 @@ import {
   Divider,
   Checkbox,
   FormControlLabel,
-} from '@mui/material';
+} from "@mui/material";
 import {
   CloudUpload,
   PlayArrow,
@@ -34,11 +34,11 @@ import {
   Edit,
   Check,
   Close,
-} from '@mui/icons-material';
-import { useDropzone } from 'react-dropzone';
-import WaveSurfer from 'wavesurfer.js';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+} from "@mui/icons-material";
+import { useDropzone } from "react-dropzone";
+import WaveSurfer from "wavesurfer.js";
+import { useAuth } from "../contexts/AuthContext";
+import axios from "axios";
 
 interface WordReplacement {
   id: string;
@@ -67,19 +67,23 @@ interface ProcessedAudioFile {
 const AudioEditor: React.FC = () => {
   const { isAuthenticated, token } = useAuth();
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [uploadedFilename, setUploadedFilename] = useState<string>('');
-  const [audioId, setAudioId] = useState<string>('');
-  const [audioUrl, setAudioUrl] = useState<string>('');
+  const [uploadedFilename, setUploadedFilename] = useState<string>("");
+  const [audioId, setAudioId] = useState<string>("");
+  const [audioUrl, setAudioUrl] = useState<string>("");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [transcription, setTranscription] = useState<string>('');
-  const [transcriptionWords, setTranscriptionWords] = useState<TranscriptionWord[]>([]);
+  const [transcription, setTranscription] = useState<string>("");
+  const [transcriptionWords, setTranscriptionWords] = useState<
+    TranscriptionWord[]
+  >([]);
   const [replacements, setReplacements] = useState<WordReplacement[]>([]);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [processedFile, setProcessedFile] = useState<ProcessedAudioFile | null>(null);
-  
+  const [processedFile, setProcessedFile] = useState<ProcessedAudioFile | null>(
+    null
+  );
+
   const waveformRef = useRef<HTMLDivElement>(null);
   const wavesurfer = useRef<WaveSurfer | null>(null);
 
@@ -92,22 +96,22 @@ const AudioEditor: React.FC = () => {
 
       wavesurfer.current = WaveSurfer.create({
         container: waveformRef.current,
-        waveColor: '#4FC3F7',
-        progressColor: '#81C784',
-        cursorColor: '#FF7043',
+        waveColor: "#4FC3F7",
+        progressColor: "#81C784",
+        cursorColor: "#FF7043",
         height: 80,
         normalize: true,
       });
 
       wavesurfer.current.load(audioUrl);
 
-      wavesurfer.current.on('ready', () => {
-        console.log('WaveSurfer is ready');
+      wavesurfer.current.on("ready", () => {
+        console.log("WaveSurfer is ready");
       });
 
-      wavesurfer.current.on('play', () => setIsPlaying(true));
-      wavesurfer.current.on('pause', () => setIsPlaying(false));
-      wavesurfer.current.on('finish', () => setIsPlaying(false));
+      wavesurfer.current.on("play", () => setIsPlaying(true));
+      wavesurfer.current.on("pause", () => setIsPlaying(false));
+      wavesurfer.current.on("finish", () => setIsPlaying(false));
     }
 
     return () => {
@@ -120,30 +124,30 @@ const AudioEditor: React.FC = () => {
   // File drop zone configuration
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'audio/*': ['.mp3', '.wav', '.m4a', '.ogg']
+      "audio/*": [".mp3", ".wav", ".m4a", ".ogg"],
     },
     maxSize: 50 * 1024 * 1024, // 50MB
     onDrop: handleFileUpload,
-    multiple: false
+    multiple: false,
   });
   async function handleFileUpload(acceptedFiles: File[]) {
     const file = acceptedFiles[0];
     if (!file) return;
 
-    console.log('🔄 New file upload started, clearing previous state...');
-    
+    console.log("🔄 New file upload started, clearing previous state...");
+
     // Clear all previous state
-    setError('');
+    setError("");
     setLoading(true);
     setUploadProgress(0);
-    setTranscription('');
+    setTranscription("");
     setTranscriptionWords([]);
     setReplacements([]);
     setProcessedFile(null);
     setAudioFile(null);
-    setUploadedFilename('');
-    setAudioId('');
-    setAudioUrl('');
+    setUploadedFilename("");
+    setAudioId("");
+    setAudioUrl("");
     setIsPlaying(false);
 
     // Destroy existing wavesurfer instance
@@ -154,19 +158,23 @@ const AudioEditor: React.FC = () => {
 
     try {
       const formData = new FormData();
-      formData.append('audio', file);
+      formData.append("audio", file);
 
       // Simulate upload progress
       const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
+        setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 200);
 
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/audio/upload`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
+      );
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -177,15 +185,15 @@ const AudioEditor: React.FC = () => {
         setUploadedFilename(data.file.filename);
         setAudioId(data.audioId);
         setAudioUrl(URL.createObjectURL(file));
-        
+
         // Start speech-to-text processing
         await processSpeechToText(data.audioId);
       } else {
-        throw new Error('Upload failed');
+        throw new Error("Upload failed");
       }
     } catch (error) {
-      setError('Failed to upload audio file');
-      console.error('Upload error:', error);
+      setError("Failed to upload audio file");
+      console.error("Upload error:", error);
     } finally {
       setLoading(false);
       setTimeout(() => setUploadProgress(0), 1000);
@@ -194,87 +202,95 @@ const AudioEditor: React.FC = () => {
 
   async function processSpeechToText(audioId: string) {
     setLoading(true);
-    
+
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/speech-to-text`, 
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/audio/speech-to-text`,
         { audioId },
         {
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
       if (response.status === 200) {
         const data = response.data;
-        setTranscription(data.transcription.text || '');
-        
+        setTranscription(data.transcription.text || "");
+
         if (data.words && data.words.length > 0) {
           setTranscriptionWords(data.words);
-          
+
           // Analyze text for potential replacements
           await analyzeText(data.transcription.text, [], audioId);
         }
       } else {
-        throw new Error('Speech-to-text processing failed');
+        throw new Error("Speech-to-text processing failed");
       }
     } catch (error) {
-      setError('Failed to process speech-to-text');
-      console.error('Speech-to-text error:', error);
+      setError("Failed to process speech-to-text");
+      console.error("Speech-to-text error:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  async function analyzeText(text: string, targetWords: string[], audioId: string) {
+  async function analyzeText(
+    text: string,
+    targetWords: string[],
+    audioId: string
+  ) {
     setLoading(true);
-    
+
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/analyze-text`, 
-        { 
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/audio/analyze-text`,
+        {
           text,
           targetWords,
-          audioId
+          audioId,
         },
         {
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
       if (response.status === 200) {
         const data = response.data;
-        
+
         if (data.wordsFound && data.wordsFound.length > 0) {
-          const newReplacements = data.wordsFound.map((word: any, index: number) => {
-            // Find matching word in transcriptionWords to get timing information
-            const matchingWord = transcriptionWords.find(
-              (tw) => tw.word.toLowerCase() === word.word.toLowerCase()
-            );
-            
-            return {
-              id: `replacement-${index}`,
-              originalWord: word.word,
-              replacementWord: word.word, // Default to same word
-              position: word.position,
-              startTime: matchingWord ? matchingWord.startTime : undefined,
-              endTime: matchingWord ? matchingWord.endTime : undefined,
-              suggestions: word.suggestions || [],
-              selected: false
-            };
-          });
-          
+          const newReplacements = data.wordsFound.map(
+            (word: any, index: number) => {
+              // Find matching word in transcriptionWords to get timing information
+              const matchingWord = transcriptionWords.find(
+                (tw) => tw.word.toLowerCase() === word.word.toLowerCase()
+              );
+
+              return {
+                id: `replacement-${index}`,
+                originalWord: word.word,
+                replacementWord: word.word, // Default to same word
+                position: word.position,
+                startTime: matchingWord ? matchingWord.startTime : undefined,
+                endTime: matchingWord ? matchingWord.endTime : undefined,
+                suggestions: word.suggestions || [],
+                selected: false,
+              };
+            }
+          );
+
           setReplacements(newReplacements);
         }
       } else {
-        throw new Error('Text analysis failed');
+        throw new Error("Text analysis failed");
       }
     } catch (error) {
-      setError('Failed to analyze text');
-      console.error('Text analysis error:', error);
+      setError("Failed to analyze text");
+      console.error("Text analysis error:", error);
     } finally {
       setLoading(false);
     }
@@ -293,73 +309,78 @@ const AudioEditor: React.FC = () => {
   };
 
   const handleReplacementToggle = (id: string) => {
-    setReplacements(prev => 
-      prev.map(replacement => 
-        replacement.id === id 
-          ? { ...replacement, selected: !replacement.selected } 
+    setReplacements((prev) =>
+      prev.map((replacement) =>
+        replacement.id === id
+          ? { ...replacement, selected: !replacement.selected }
           : replacement
       )
     );
   };
 
   const handleReplacementChange = (id: string, newReplacement: string) => {
-    setReplacements(prev => 
-      prev.map(replacement => 
-        replacement.id === id 
-          ? { ...replacement, replacementWord: newReplacement } 
+    setReplacements((prev) =>
+      prev.map((replacement) =>
+        replacement.id === id
+          ? { ...replacement, replacementWord: newReplacement }
           : replacement
       )
     );
   };
 
   const handleRemoveReplacement = (id: string) => {
-    setReplacements(prev => prev.filter(replacement => replacement.id !== id));
+    setReplacements((prev) =>
+      prev.filter((replacement) => replacement.id !== id)
+    );
   };
 
   const handleProcessAudio = async () => {
     if (!audioId) {
-      setError('No audio file selected');
+      setError("No audio file selected");
       return;
     }
 
-    const selectedReplacements = replacements.filter(r => r.selected);
-    
+    const selectedReplacements = replacements.filter((r) => r.selected);
+
     if (selectedReplacements.length === 0) {
-      setError('Please select at least one word to replace');
+      setError("Please select at least one word to replace");
       return;
     }
 
     // Filter out replacements without valid timing information
-    const validReplacements = selectedReplacements.filter(r => 
-      r.startTime !== undefined && r.endTime !== undefined
+    const validReplacements = selectedReplacements.filter(
+      (r) => r.startTime !== undefined && r.endTime !== undefined
     );
 
     if (validReplacements.length === 0) {
-      setError('Selected words do not have valid timing information. Please try again.');
+      setError(
+        "Selected words do not have valid timing information. Please try again."
+      );
       return;
     }
 
     setProcessing(true);
-    setError('');
+    setError("");
 
     try {
-      const formattedReplacements = validReplacements.map(r => ({
+      const formattedReplacements = validReplacements.map((r) => ({
         originalWord: r.originalWord,
         replacementText: r.replacementWord,
         startTime: r.startTime,
-        endTime: r.endTime
+        endTime: r.endTime,
       }));
 
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/audio/process-audio`, 
-        { 
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/api/audio/process-audio`,
+        {
           audioId,
-          replacements: formattedReplacements
+          replacements: formattedReplacements,
         },
         {
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -368,14 +389,14 @@ const AudioEditor: React.FC = () => {
         setProcessedFile({
           filename: data.processedFile.filename,
           path: data.processedFile.path,
-          downloadUrl: `${process.env.REACT_APP_API_URL}/api/audio/processed/${audioId}`
+          downloadUrl: `${process.env.REACT_APP_API_URL}/api/audio/processed/${audioId}`,
         });
       } else {
-        throw new Error('Audio processing failed');
+        throw new Error("Audio processing failed");
       }
     } catch (error) {
-      setError('Failed to process audio');
-      console.error('Audio processing error:', error);
+      setError("Failed to process audio");
+      console.error("Audio processing error:", error);
     } finally {
       setProcessing(false);
     }
@@ -383,7 +404,7 @@ const AudioEditor: React.FC = () => {
 
   const handleDownload = () => {
     if (processedFile) {
-      window.open(processedFile.downloadUrl, '_blank');
+      window.open(processedFile.downloadUrl, "_blank");
     }
   };
 
@@ -415,18 +436,18 @@ const AudioEditor: React.FC = () => {
         sx={{
           p: 4,
           mb: 3,
-          textAlign: 'center',
-          border: isDragActive ? '2px dashed #4FC3F7' : '2px dashed #ccc',
-          backgroundColor: isDragActive ? '#f8f9fa' : 'background.paper',
-          cursor: 'pointer',
+          textAlign: "center",
+          border: isDragActive ? "2px dashed #4FC3F7" : "2px dashed #ccc",
+          backgroundColor: isDragActive ? "#f8f9fa" : "background.paper",
+          cursor: "pointer",
         }}
       >
         <input {...getInputProps()} />
-        <CloudUpload sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+        <CloudUpload sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
         <Typography variant="h6" gutterBottom>
           {isDragActive
-            ? 'Drop the audio file here...'
-            : 'Drag & drop an audio file here, or click to select'}
+            ? "Drop the audio file here..."
+            : "Drag & drop an audio file here, or click to select"}
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Supported formats: MP3, WAV, M4A, OGG (Max: 50MB)
@@ -443,7 +464,7 @@ const AudioEditor: React.FC = () => {
       </Paper>
 
       {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
           <CircularProgress />
           <Typography sx={{ ml: 2 }}>Processing audio...</Typography>
         </Box>
@@ -457,13 +478,13 @@ const AudioEditor: React.FC = () => {
               Audio Player
             </Typography>
             <Box ref={waveformRef} sx={{ my: 2 }} />
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: "flex", gap: 1 }}>
               <Button
                 variant="contained"
                 startIcon={isPlaying ? <Pause /> : <PlayArrow />}
                 onClick={handlePlayPause}
               >
-                {isPlaying ? 'Pause' : 'Play'}
+                {isPlaying ? "Pause" : "Play"}
               </Button>
               <Button
                 variant="outlined"
@@ -484,7 +505,10 @@ const AudioEditor: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Transcription
             </Typography>
-            <Typography variant="body1" sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+            <Typography
+              variant="body1"
+              sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}
+            >
               {transcription}
             </Typography>
           </CardContent>
@@ -499,9 +523,10 @@ const AudioEditor: React.FC = () => {
               Word Replacements
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select the words you want to replace and customize the replacement text:
+              Select the words you want to replace and customize the replacement
+              text:
             </Typography>
-            
+
             <List>
               {replacements.map((replacement) => (
                 <React.Fragment key={replacement.id}>
@@ -510,7 +535,9 @@ const AudioEditor: React.FC = () => {
                       control={
                         <Checkbox
                           checked={replacement.selected}
-                          onChange={() => handleReplacementToggle(replacement.id)}
+                          onChange={() =>
+                            handleReplacementToggle(replacement.id)
+                          }
                         />
                       }
                       label=""
@@ -518,8 +545,10 @@ const AudioEditor: React.FC = () => {
                     />
                     <ListItemText
                       primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Chip 
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", gap: 2 }}
+                        >
+                          <Chip
                             label={replacement.originalWord}
                             color="error"
                             variant="outlined"
@@ -528,37 +557,67 @@ const AudioEditor: React.FC = () => {
                           <TextField
                             size="small"
                             value={replacement.replacementWord}
-                            onChange={(e) => handleReplacementChange(replacement.id, e.target.value)}
+                            onChange={(e) =>
+                              handleReplacementChange(
+                                replacement.id,
+                                e.target.value
+                              )
+                            }
                             disabled={!replacement.selected}
                             placeholder="Enter replacement word"
                             sx={{ minWidth: 150 }}
                           />
                           <Typography variant="body2" color="text.secondary">
-                            ({replacement.startTime !== undefined ? replacement.startTime.toFixed(1) : 'N/A'}s - {replacement.endTime !== undefined ? replacement.endTime.toFixed(1) : 'N/A'}s)
+                            (
+                            {replacement.startTime !== undefined
+                              ? replacement.startTime.toFixed(1)
+                              : "N/A"}
+                            s -{" "}
+                            {replacement.endTime !== undefined
+                              ? replacement.endTime.toFixed(1)
+                              : "N/A"}
+                            s)
                           </Typography>
                         </Box>
                       }
                       secondary={
                         replacement.suggestions.length > 0 && (
                           <Box sx={{ mt: 1 }}>
-                            <Typography variant="caption">Suggestions: </Typography>
-                            {replacement.suggestions.map((suggestion, index) => (
-                              <Chip
-                                key={index}
-                                label={suggestion}
-                                size="small"
-                                variant="outlined"
-                                onClick={() => replacement.selected && handleReplacementChange(replacement.id, suggestion)}
-                                sx={{ mr: 0.5, cursor: replacement.selected ? 'pointer' : 'default' }}
-                                disabled={!replacement.selected}
-                              />
-                            ))}
+                            <Typography variant="caption">
+                              Suggestions:{" "}
+                            </Typography>
+                            {replacement.suggestions.map(
+                              (suggestion, index) => (
+                                <Chip
+                                  key={index}
+                                  label={suggestion}
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() =>
+                                    replacement.selected &&
+                                    handleReplacementChange(
+                                      replacement.id,
+                                      suggestion
+                                    )
+                                  }
+                                  sx={{
+                                    mr: 0.5,
+                                    cursor: replacement.selected
+                                      ? "pointer"
+                                      : "default",
+                                  }}
+                                  disabled={!replacement.selected}
+                                />
+                              )
+                            )}
                           </Box>
                         )
                       }
                     />
                     <ListItemSecondaryAction>
-                      <IconButton onClick={() => handleRemoveReplacement(replacement.id)}>
+                      <IconButton
+                        onClick={() => handleRemoveReplacement(replacement.id)}
+                      >
                         <Delete />
                       </IconButton>
                     </ListItemSecondaryAction>
@@ -568,17 +627,19 @@ const AudioEditor: React.FC = () => {
               ))}
             </List>
 
-            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+            <Box sx={{ mt: 3, display: "flex", gap: 2 }}>
               <Button
                 variant="contained"
                 color="primary"
-                startIcon={processing ? <CircularProgress size={20} /> : <VolumeUp />}
+                startIcon={
+                  processing ? <CircularProgress size={20} /> : <VolumeUp />
+                }
                 onClick={handleProcessAudio}
-                disabled={processing || !replacements.some(r => r.selected)}
+                disabled={processing || !replacements.some((r) => r.selected)}
               >
-                {processing ? 'Processing...' : 'Process Audio'}
+                {processing ? "Processing..." : "Process Audio"}
               </Button>
-              
+
               {processedFile && (
                 <Button
                   variant="outlined"

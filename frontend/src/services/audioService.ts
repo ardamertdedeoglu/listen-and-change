@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api } from "./api";
 
 export interface AudioFile {
   filename: string;
@@ -70,30 +70,42 @@ export interface NLPAnalysis {
 
 export const audioService = {
   // Upload audio file
-  async uploadAudio(file: File, onProgress?: (progress: number) => void): Promise<{ file: AudioFile }> {
-    return api.uploadFile('/audio/upload', file, onProgress);
+  async uploadAudio(
+    file: File,
+    onProgress?: (progress: number) => void
+  ): Promise<{ file: AudioFile }> {
+    return api.uploadFile("/audio/upload", file, onProgress);
   },
 
   // Convert speech to text
-  async speechToText(filename: string): Promise<{ transcription: Transcription; words: TranscriptionWord[] }> {
-    return api.request('/audio/speech-to-text', {
-      method: 'POST',
+  async speechToText(
+    filename: string
+  ): Promise<{ transcription: Transcription; words: TranscriptionWord[] }> {
+    return api.request("/audio/speech-to-text", {
+      method: "POST",
       body: JSON.stringify({ filename }),
     });
   },
 
   // Analyze text for inappropriate words
-  async analyzeText(text: string, targetWords?: string[], audioId?: string): Promise<{ analysis: NLPAnalysis; wordsFound: any[]; suggestions: any[] }> {
-    return api.request('/audio/analyze-text', {
-      method: 'POST',
+  async analyzeText(
+    text: string,
+    targetWords?: string[],
+    audioId?: string
+  ): Promise<{ analysis: NLPAnalysis; wordsFound: any[]; suggestions: any[] }> {
+    return api.request("/audio/analyze-text", {
+      method: "POST",
       body: JSON.stringify({ text, targetWords, audioId }),
     });
   },
 
   // Process audio with word replacements
-  async processAudio(filename: string, replacements: WordReplacement[]): Promise<{ message: string; processedFile: string; downloadUrl: string }> {
-    return api.request('/audio/process-audio', {
-      method: 'POST',
+  async processAudio(
+    filename: string,
+    replacements: WordReplacement[]
+  ): Promise<{ message: string; processedFile: string; downloadUrl: string }> {
+    return api.request("/audio/process-audio", {
+      method: "POST",
       body: JSON.stringify({ filename, replacements }),
     });
   },
@@ -104,7 +116,14 @@ export const audioService = {
   },
 
   // Get audio file info
-  async getAudioInfo(filename: string): Promise<{ filename: string; size: number; created: string; modified: string }> {
+  async getAudioInfo(
+    filename: string
+  ): Promise<{
+    filename: string;
+    size: number;
+    created: string;
+    modified: string;
+  }> {
     return api.request(`/audio/info/${filename}`);
-  }
+  },
 };

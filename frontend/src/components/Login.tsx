@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Container,
   Paper,
@@ -9,67 +9,67 @@ import {
   Alert,
   Tabs,
   Tab,
-} from '@mui/material';
-import { Login as LoginIcon, PersonAdd } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+} from "@mui/material";
+import { Login as LoginIcon, PersonAdd } from "@mui/icons-material";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const Login: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  
+
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-    setError('');
-    setEmail('');
-    setPassword('');
-    setName('');
+    setError("");
+    setEmail("");
+    setPassword("");
+    setName("");
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       let success = false;
-      
+
       if (tabValue === 0) {
         // Login
         success = await login(email, password);
         if (!success) {
-          setError('Invalid email or password');
+          setError("Invalid email or password");
         }
       } else {
         // Register
         if (!name.trim()) {
-          setError('Name is required');
+          setError("Name is required");
           setLoading(false);
           return;
         }
         if (password.length < 6) {
-          setError('Password must be at least 6 characters long');
+          setError("Password must be at least 6 characters long");
           setLoading(false);
           return;
         }
         success = await register(email, password, name);
         if (!success) {
-          setError('Registration failed. Email might already be in use.');
+          setError("Registration failed. Email might already be in use.");
         }
       }
 
       if (success) {
-        navigate('/');
+        navigate("/");
       }
     } catch (error) {
-      console.error('Form submission error:', error);
-      setError('An unexpected error occurred. Please try again.');
+      console.error("Form submission error:", error);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -77,35 +77,35 @@ const Login: React.FC = () => {
 
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper 
-        elevation={3} 
-        sx={{ 
-          p: 4, 
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
           borderRadius: 2,
-          backgroundColor: 'background.paper'
+          backgroundColor: "background.paper",
         }}
       >
-        <Typography 
-          variant="h4" 
-          align="center" 
+        <Typography
+          variant="h4"
+          align="center"
           gutterBottom
-          sx={{ color: 'primary.main', fontWeight: 600 }}
+          sx={{ color: "primary.main", fontWeight: 600 }}
         >
           Welcome to Listen & Change
         </Typography>
-        
-        <Typography 
-          variant="body1" 
-          align="center" 
+
+        <Typography
+          variant="body1"
+          align="center"
           color="text.secondary"
           sx={{ mb: 3 }}
         >
           Create family-friendly audio content with ease
         </Typography>
 
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange} 
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
           centered
           sx={{ mb: 3 }}
         >
@@ -131,7 +131,7 @@ const Login: React.FC = () => {
               variant="outlined"
             />
           )}
-          
+
           <TextField
             fullWidth
             label="Email Address"
@@ -142,7 +142,7 @@ const Login: React.FC = () => {
             required
             variant="outlined"
           />
-          
+
           <TextField
             fullWidth
             label="Password"
@@ -161,14 +161,18 @@ const Login: React.FC = () => {
             size="large"
             disabled={loading}
             startIcon={tabValue === 0 ? <LoginIcon /> : <PersonAdd />}
-            sx={{ 
-              mt: 3, 
+            sx={{
+              mt: 3,
               mb: 2,
               py: 1.5,
-              fontWeight: 600
+              fontWeight: 600,
             }}
           >
-            {loading ? 'Please wait...' : (tabValue === 0 ? 'Login' : 'Create Account')}
+            {loading
+              ? "Please wait..."
+              : tabValue === 0
+              ? "Login"
+              : "Create Account"}
           </Button>
         </Box>
       </Paper>

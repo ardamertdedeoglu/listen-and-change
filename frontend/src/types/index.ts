@@ -10,7 +10,7 @@ export interface User {
 export interface UserPreferences {
   targetWords?: string[];
   replacementWords?: Record<string, string>;
-  audioQuality?: 'low' | 'medium' | 'high';
+  audioQuality?: "low" | "medium" | "high";
   autoProcess?: boolean;
 }
 
@@ -34,7 +34,7 @@ export interface Transcription {
   text: string;
   words: TranscriptionWord[];
   duration?: number;
-  source?: 'real' | 'mock' | string;
+  source?: "real" | "mock" | string;
   language?: string;
   confidence?: number;
 }
@@ -78,7 +78,7 @@ export interface NLPSuggestion {
 
 export interface NLPSentiment {
   score: number;
-  label: 'positive' | 'negative' | 'neutral';
+  label: "positive" | "negative" | "neutral";
   confidence: number;
   positiveWords?: number;
   negativeWords?: number;
@@ -93,7 +93,7 @@ export interface NLPAnalysis {
   sentenceCount: number;
   analysis: {
     hasInappropriateContent: boolean;
-    severity: 'none' | 'low' | 'medium' | 'high';
+    severity: "none" | "low" | "medium" | "high";
     recommendations: string[];
   };
 }
@@ -112,8 +112,8 @@ export interface UploadProgress {
 }
 
 export interface AudioProcessingOptions {
-  quality?: 'low' | 'medium' | 'high';
-  format?: 'wav' | 'mp3' | 'm4a';
+  quality?: "low" | "medium" | "high";
+  format?: "wav" | "mp3" | "m4a";
   removeNoise?: boolean;
   normalizeVolume?: boolean;
 }
@@ -133,7 +133,20 @@ export interface BaseComponentProps {
 }
 
 // Audio player states
-export type AudioPlayerState = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+export type AudioPlayerState =
+  | "idle"
+  | "loading"
+  | "playing"
+  | "paused"
+  | "stopped"
+  | "error";
 
 // Processing states
-export type ProcessingState = 'idle' | 'uploading' | 'transcribing' | 'analyzing' | 'processing' | 'completed' | 'error';
+export type ProcessingState =
+  | "idle"
+  | "uploading"
+  | "transcribing"
+  | "analyzing"
+  | "processing"
+  | "completed"
+  | "error";

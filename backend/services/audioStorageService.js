@@ -1,11 +1,11 @@
-const fs = require('fs');
-const path = require('path');
-const Audio = require('../models/Audio');
+const fs = require("fs");
+const path = require("path");
+const Audio = require("../models/Audio");
 
 class AudioStorageService {
   constructor() {
-    this.uploadsDir = path.join(__dirname, '../uploads');
-    
+    this.uploadsDir = path.join(__dirname, "../uploads");
+
     // Ensure uploads directory exists
     if (!fs.existsSync(this.uploadsDir)) {
       fs.mkdirSync(this.uploadsDir, { recursive: true });
@@ -26,14 +26,14 @@ class AudioStorageService {
         filename: fileInfo.filename,
         filePath: fileInfo.path,
         fileSize: fileInfo.size,
-        mimeType: fileInfo.mimetype
+        mimeType: fileInfo.mimetype,
       });
 
       const savedAudio = await audio.save();
       return savedAudio;
     } catch (error) {
-      console.error('Error saving audio file to database:', error);
-      throw new Error('Failed to save audio file information');
+      console.error("Error saving audio file to database:", error);
+      throw new Error("Failed to save audio file information");
     }
   }
 
@@ -46,19 +46,19 @@ class AudioStorageService {
   async updateProcessedAudio(audioId, processedInfo) {
     try {
       const audio = await Audio.findById(audioId);
-      
+
       if (!audio) {
-        throw new Error('Audio file not found');
+        throw new Error("Audio file not found");
       }
 
       audio.isProcessed = true;
       audio.processedFilePath = processedInfo.path;
       audio.processedFilename = processedInfo.filename;
-      
+
       if (processedInfo.transcription) {
         audio.transcription = processedInfo.transcription;
       }
-      
+
       if (processedInfo.replacements) {
         audio.replacements = processedInfo.replacements;
       }
@@ -66,8 +66,8 @@ class AudioStorageService {
       const updatedAudio = await audio.save();
       return updatedAudio;
     } catch (error) {
-      console.error('Error updating processed audio:', error);
-      throw new Error('Failed to update processed audio information');
+      console.error("Error updating processed audio:", error);
+      throw new Error("Failed to update processed audio information");
     }
   }
 
@@ -81,8 +81,8 @@ class AudioStorageService {
       const audios = await Audio.find({ userId }).sort({ createdAt: -1 });
       return audios;
     } catch (error) {
-      console.error('Error fetching user audio files:', error);
-      throw new Error('Failed to fetch user audio files');
+      console.error("Error fetching user audio files:", error);
+      throw new Error("Failed to fetch user audio files");
     }
   }
 
@@ -94,15 +94,15 @@ class AudioStorageService {
   async getAudioById(audioId) {
     try {
       const audio = await Audio.findById(audioId);
-      
+
       if (!audio) {
-        throw new Error('Audio file not found');
+        throw new Error("Audio file not found");
       }
-      
+
       return audio;
     } catch (error) {
-      console.error('Error fetching audio file:', error);
-      throw new Error('Failed to fetch audio file');
+      console.error("Error fetching audio file:", error);
+      throw new Error("Failed to fetch audio file");
     }
   }
 
@@ -114,9 +114,9 @@ class AudioStorageService {
   async deleteAudio(audioId) {
     try {
       const audio = await Audio.findById(audioId);
-      
+
       if (!audio) {
-        throw new Error('Audio file not found');
+        throw new Error("Audio file not found");
       }
 
       // Delete the original file
@@ -131,13 +131,13 @@ class AudioStorageService {
 
       // Delete the database record
       await Audio.findByIdAndDelete(audioId);
-      
+
       return true;
     } catch (error) {
-      console.error('Error deleting audio file:', error);
-      throw new Error('Failed to delete audio file');
+      console.error("Error deleting audio file:", error);
+      throw new Error("Failed to delete audio file");
     }
   }
 }
 
-module.exports = new AudioStorageService(); 
+module.exports = new AudioStorageService();

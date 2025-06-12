@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
-import { formatDistanceToNow } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import axios from "axios";
+import { formatDistanceToNow } from "date-fns";
 
 interface AudioFile {
   _id: string;
@@ -23,16 +23,19 @@ const UserAudios: React.FC = () => {
     const fetchAudios = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/audio/my-audios`, {
-          headers: {
-            Authorization: `Bearer ${token}`
+        const response = await axios.get(
+          `${process.env.REACT_APP_API_URL}/api/audio/my-audios`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           }
-        });
+        );
         setAudios(response.data.audios);
         setError(null);
       } catch (err) {
-        console.error('Error fetching audio files:', err);
-        setError('Failed to load your audio files. Please try again later.');
+        console.error("Error fetching audio files:", err);
+        setError("Failed to load your audio files. Please try again later.");
       } finally {
         setLoading(false);
       }
@@ -44,29 +47,32 @@ const UserAudios: React.FC = () => {
   }, [token]);
 
   const handleDelete = async (audioId: string) => {
-    if (!window.confirm('Are you sure you want to delete this audio file?')) {
+    if (!window.confirm("Are you sure you want to delete this audio file?")) {
       return;
     }
 
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/api/audio/${audioId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL}/api/audio/${audioId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
-      
+      );
+
       // Remove the deleted audio from the state
-      setAudios(audios.filter(audio => audio._id !== audioId));
+      setAudios(audios.filter((audio) => audio._id !== audioId));
     } catch (err) {
-      console.error('Error deleting audio file:', err);
-      setError('Failed to delete audio file. Please try again later.');
+      console.error("Error deleting audio file:", err);
+      setError("Failed to delete audio file. Please try again later.");
     }
   };
 
   const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    else return (bytes / 1048576).toFixed(1) + ' MB';
+    if (bytes < 1024) return bytes + " B";
+    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    else return (bytes / 1048576).toFixed(1) + " MB";
   };
 
   if (loading) {
@@ -90,35 +96,42 @@ const UserAudios: React.FC = () => {
     <div className="user-audios">
       <h2>Your Audio Files</h2>
       <div className="audio-list">
-        {audios.map(audio => (
+        {audios.map((audio) => (
           <div key={audio._id} className="audio-item">
             <div className="audio-info">
               <h3>{audio.originalName}</h3>
               <p>Size: {formatFileSize(audio.fileSize)}</p>
-              <p>Uploaded: {formatDistanceToNow(new Date(audio.createdAt), { addSuffix: true })}</p>
-              {audio.isProcessed && <span className="processed-badge">Processed</span>}
+              <p>
+                Uploaded:{" "}
+                {formatDistanceToNow(new Date(audio.createdAt), {
+                  addSuffix: true,
+                })}
+              </p>
+              {audio.isProcessed && (
+                <span className="processed-badge">Processed</span>
+              )}
             </div>
             <div className="audio-actions">
-              <a 
-                href={`${process.env.REACT_APP_API_URL}/api/audio/original/${audio._id}`} 
-                target="_blank" 
+              <a
+                href={`${process.env.REACT_APP_API_URL}/api/audio/original/${audio._id}`}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-primary"
               >
                 Download Original
               </a>
               {audio.isProcessed && (
-                <a 
-                  href={`${process.env.REACT_APP_API_URL}/api/audio/processed/${audio._id}`} 
-                  target="_blank" 
+                <a
+                  href={`${process.env.REACT_APP_API_URL}/api/audio/processed/${audio._id}`}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-success"
                 >
                   Download Processed
                 </a>
               )}
-              <button 
-                onClick={() => handleDelete(audio._id)} 
+              <button
+                onClick={() => handleDelete(audio._id)}
                 className="btn btn-danger"
               >
                 Delete
@@ -131,4 +144,4 @@ const UserAudios: React.FC = () => {
   );
 };
 
-export default UserAudios; 
+export default UserAudios;
